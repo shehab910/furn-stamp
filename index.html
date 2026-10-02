@@ -213,7 +213,7 @@ dialog .btn.primary{grid-column:auto}
       <label>Save folder</label>
       <p id="folderName">No folder chosen</p>
       <button class="btn" id="chooseFolder" type="button">Choose folder</button>
-      <p class="hint">Pick the folder Google Drive for desktop backs up to Google Photos. All photos go straight into this folder, with a small .txt per piece.</p>
+      <p class="hint">Pick the folder Google Drive for desktop backs up to Google Photos. Photos go into a subfolder per category (like Living), with a small .txt per piece.</p>
     </div>
   </section>
 </main>
@@ -293,6 +293,7 @@ const idb = (mode, fn) => new Promise((res,rej)=>{
 });
 const today = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` };
 const slug = s => (s||'').toLowerCase().normalize('NFKC').replace(/[^\p{L}\p{N}]+/gu,'-').replace(/^-+|-+$/g,'').slice(0,40);
+const folderFor = c => (c||'').normalize('NFKC').replace(/[<>:"/\\|?*\x00-\x1f]+/g,' ').replace(/\s+/g,' ').replace(/^[\s.]+|[\s.]+$/g,'').slice(0,60) || 'Other';
 const newId = () => Math.random().toString(36).slice(2,6).padEnd(4,'0');
 
 /* ---------- state ---------- */
@@ -591,7 +592,7 @@ async function writeFile(dir, name, data){
 async function saveNew(){
   const i=info(), n=photos.length;
   const base=baseName(i);
-  const sub=dirHandle;
+  const sub=await dirHandle.getDirectoryHandle(folderFor(i.category),{create:true});
   const c=document.createElement('canvas'); let saved=0;
   for(let k=0;k<n;k++){
     const p=photos[k];
@@ -605,7 +606,7 @@ async function saveNew(){
   }
   await writeFile(sub,`${base}.txt`,infoText({...i, date:today()}));
   mergeRecords([{...i, date:today()}]);
-  const where=dirHandle.name;
+  const where=`${dirHandle.name}/${sub.name}`;
   if(saved===n){ clearPhotos(); say(`Saved ${n} photo${n>1?'s':''} to ${where}.`,'ok'); }
   else say(`Saved ${saved} of ${n}. Check the photos marked in red.`,'err');
 }

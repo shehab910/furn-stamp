@@ -20,7 +20,7 @@
 - Bands are always drawn and empty slots stay blank. Text shrinks to 70% and is then cut with "…".
 - The stamp is drawn after any downscaling, so the geometry can be recomputed exactly from the saved file's dimensions.
 
-**Saving:** flat into the chosen save folder.
+**Saving:** into one subfolder per category inside the chosen save folder (e.g. `Living/`), created on demand. The folder name is the category as typed, with characters Windows forbids stripped; no deeper nesting.
 
 - Files are `category_YYYY-MM-DD_xxxx_NN.jpg`, where xxxx is a random 4-char batch ID, plus a sidecar `category_YYYY-MM-DD_xxxx.txt` with labeled lines (Layout, Category, Item, Store, Price, Size, Rating, Date, Description).
 - New photos keep full resolution at JPEG 0.95, capped at 10 MB: quality steps down first, then resolution (6000, 4096, 3200).
