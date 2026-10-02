@@ -87,6 +87,9 @@ textarea{resize:vertical;min-height:64px}
 .stars{display:flex;gap:2px}
 .stars button{background:none;border:0;padding:0 2px;font-size:26px;line-height:1;cursor:pointer;color:var(--line)}
 .stars button.on{color:#E0A82E}
+.check{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;margin:14px 0 4px;cursor:pointer}
+.check input{width:18px;height:18px;margin:0;accent-color:var(--accent)}
+.card .seen{margin-left:8px;font-size:12px;font-weight:700;color:var(--good)}
 .linkbtn{background:none;border:0;padding:0;color:var(--accent);font-weight:600;text-decoration:underline;cursor:pointer}
 label .linkbtn{font-size:13px;margin-left:6px}
 
@@ -171,6 +174,7 @@ dialog .btn.primary{grid-column:auto}
       <button type="button" role="radio" data-v="1" aria-label="1 star">★</button><button type="button" role="radio" data-v="2" aria-label="2 stars">★</button><button type="button" role="radio" data-v="3" aria-label="3 stars">★</button><button type="button" role="radio" data-v="4" aria-label="4 stars">★</button><button type="button" role="radio" data-v="5" aria-label="5 stars">★</button>
     </div>
     <input type="hidden" id="rating" value="0">
+    <label class="check"><input type="checkbox" id="seen"> Seen in real life</label>
     <label for="notes">Description</label>
     <textarea id="notes" placeholder="Grey fabric, washable cover, 4 week delivery"></textarea>
     <datalist id="catList"></datalist><datalist id="itemList"></datalist>
@@ -236,6 +240,11 @@ dialog .btn.primary{grid-column:auto}
       <option value="2">★★ and up</option>
       <option value="1">★ and up</option>
       <option value="0">Unrated</option>
+    </select>
+    <select id="gSeen" aria-label="Seen in real life">
+      <option value="">Seen or not</option>
+      <option value="yes">Seen IRL</option>
+      <option value="no">Not seen IRL</option>
     </select>
     <select id="gSort" aria-label="Sort">
       <option value="new">Newest first</option>
@@ -305,7 +314,7 @@ let batchId = newId();
 let edit = null;          // {dir, base, existing, maxNum}
 let dirHandle = null;
 
-function info(){ const o={}; fields.forEach(f=>o[f]=$(f).value.trim()); return o; }
+function info(){ const o={}; fields.forEach(f=>o[f]=$(f).value.trim()); o.seen=$('seen').checked?'yes':'no'; return o; }
 function say(text, cls=''){ const m=$('msg'); m.textContent=text; m.className='msg '+cls; }
 
 /* ---------- naming: category_date_id_NN.jpg ---------- */
@@ -319,11 +328,12 @@ function nameFor(idx){
 }
 
 /* ---------- info.txt ---------- */
-const LAYOUT = '3';
-const OUT_LABELS = [['layout','Layout'],['category','Category'],['item','Item'],['store','Store'],['price','Price'],['dims','Size'],['rating','Rating'],['date','Date'],['notes','Description']];
+const LAYOUT = '4';                       // 4: narrower item slot to fit the seen IRL badge
+const EDITABLE = ['3', LAYOUT];         // 3 pieces get the badge over the end of the item row
+const OUT_LABELS = [['layout','Layout'],['category','Category'],['item','Item'],['store','Store'],['price','Price'],['dims','Size'],['rating','Rating'],['seen','Seen'],['date','Date'],['notes','Description']];
 const IN_LABELS = Object.fromEntries([...OUT_LABELS.map(([k,l])=>[l,k]), ['Notes','notes']]);
 function infoText(v){
-  return OUT_LABELS.map(([k,l])=>{ const x = k==='layout' ? LAYOUT : v[k]; return x ? `${l}: ${x}` : ''; }).filter(Boolean).join('\n')+'\n';
+  return OUT_LABELS.map(([k,l])=>{ const x = k==='layout' ? (v.layout||LAYOUT) : v[k]; return x ? `${l}: ${x}` : ''; }).filter(Boolean).join('\n')+'\n';
 }
 function parseInfo(txt){
   const r={}; let inNotes=false;
@@ -351,9 +361,11 @@ function layout(W,H){
   const colGap = Math.round(base*0.8), usable = inner - colGap*3;
   const star = Math.round(base*1.15), starGap = Math.round(star*0.22), starsW = star*5 + starGap*4;
   const stars = {x:pad+inner-starsW, y:y0+pad, h:itemLH, size:star, gap:starGap};
+  const seenW = Math.round(base*4.4), seenH = star;
+  const seen = {x:stars.x-colGap-seenW, y:y0+pad+Math.round((itemLH-seenH)/2), w:seenW, h:seenH, size:Math.round(base*0.7)};
   const slots = {
     notes:{x:pad, y:pad, w:inner, size:descSize, weight:400, lines:2, lh:descLH},
-    item:{x:pad, y:y0+pad, w:inner-starsW-colGap, h:itemLH, size:itemSize, weight:700}
+    item:{x:pad, y:y0+pad, w:seen.x-colGap-pad, h:itemLH, size:itemSize, weight:700}
   };
   let x = pad;
   [['category',.2],['store',.32],['price',.22],['dims',.26]].forEach(([k,fr])=>{
@@ -361,7 +373,7 @@ function layout(W,H){
     slots[k] = {x, y:y0+pad+itemLH+gap, w, h:rowLH, size:base, weight:500};
     x += w + colGap;
   });
-  return {base, topH, botH, y0, colGap, slots, stars};
+  return {base, topH, botH, y0, colGap, slots, stars, seen};
 }
 function drawBands(ctx, L, W){
   ctx.fillStyle='rgba(0,0,0,.6)';
@@ -423,6 +435,21 @@ function drawStars(ctx, S, rating){
     ctx.strokeStyle = on ? '#E8B931' : '#6e6e6e'; ctx.stroke();
   }
 }
+// opaque pill left of the stars; both states cover the same pixels, so toggling overlays cleanly
+function drawSeen(ctx, S, on){
+  const r = S.h/2;
+  ctx.beginPath(); ctx.roundRect(S.x, S.y, S.w, S.h, r);
+  ctx.fillStyle = on ? '#2F7A52' : '#0d0d0d'; ctx.fill();
+  ctx.lineWidth = Math.max(1, S.h/16); ctx.strokeStyle = on ? '#2F7A52' : '#6e6e6e'; ctx.stroke();
+  let size = S.size; const t = on ? '✓ Seen IRL' : 'Not seen';
+  ctx.font = font(700,size);
+  while (ctx.measureText(t).width > S.w - r*1.2 && size > 6){ size--; ctx.font = font(700,size); }
+  ctx.fillStyle = on ? '#fff' : '#9a9a9a'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(t, S.x + S.w/2, S.y + S.h/2);
+  ctx.textAlign='left';
+}
+const seenOf = v => v==='yes';
+const seenChanged = i => !!edit && seenOf(i.seen) !== seenOf(edit.existing.seen);
 const ratingOf = v => Math.max(0, Math.min(5, parseInt(v,10) || 0));
 const ratingChanged = i => !!edit && ratingOf(i.rating) !== ratingOf(edit.existing.rating);
 // fields that were empty in the saved piece and are filled now
@@ -445,6 +472,7 @@ function paint(bmp, p, i, canvas, maxEdge=Infinity){
     SLOT_KEYS.forEach(k=>drawSlot(ctx, L.slots[k], i[k]));
   }
   drawStars(ctx, L.stars, ratingOf(i.rating));                // always (re)drawn
+  drawSeen(ctx, L.seen, seenOf(i.seen));                      // always (re)drawn
   return canvas;
 }
 const loadBmp = f => createImageBitmap(f, {imageOrientation:'from-image'});
@@ -507,8 +535,9 @@ function autofillFromItem(){
 function render(){
   const i=info(), n=photos.length, fresh=photos.filter(p=>!p.existing).length;
   if (edit){
-    const nk=newKeys(i).length, rc=ratingChanged(i);
-    $('fnPreview').innerHTML = `Editing <b>${escapeHtml(edit.base)}</b>: ${nk||rc ? [nk?`${nk} new field${nk>1?'s':''}`:'', rc?'new rating':''].filter(Boolean).join(' and ')+' to overlay' : 'change the rating or fill an empty field'}${fresh?`, ${fresh} new photo${fresh>1?'s':''}`:''}.`;
+    const nk=newKeys(i).length, rc=ratingChanged(i), sc=seenChanged(i);
+    const parts=[nk?`${nk} new field${nk>1?'s':''}`:'', rc?'new rating':'', sc?'seen IRL change':''].filter(Boolean);
+    $('fnPreview').innerHTML = `Editing <b>${escapeHtml(edit.base)}</b>: ${parts.length ? parts.join(', ')+' to overlay' : 'change the rating or seen IRL, or fill an empty field'}${fresh?`, ${fresh} new photo${fresh>1?'s':''}`:''}.`;
   } else {
     $('fnPreview').innerHTML = `File names: <b>${escapeHtml(fileName(baseName(i),0,Math.max(fresh,1)))}</b>` + (fresh>1 ? ` … <b>_${String(fresh).padStart(Math.max(2,String(fresh).length),'0')}</b>` : '');
   }
@@ -534,7 +563,7 @@ function render(){
   $('editBtn').textContent = edit ? 'Cancel edit' : 'Edit a saved piece';
   $('editBtn').disabled = busy;
   $('editBanner').hidden = !edit;
-  if (edit) $('editBanner').textContent = 'Edit mode: filled fields are locked. Empty ones get overlaid onto the saved photos.';
+  if (edit) $('editBanner').textContent = 'Edit mode: filled fields are locked. Empty ones get overlaid onto the saved photos. Rating and seen IRL can always change.';
 }
 
 let pvTimer;
@@ -614,12 +643,12 @@ async function saveNew(){
 async function applyEdit(){
   const i=info(), keys=newKeys(i);
   const fresh=photos.filter(p=>!p.existing);
-  const rc = ratingChanged(i);
-  if(!keys.length && !fresh.length && !rc){ say('Nothing new to add. Change the rating, fill an empty field, or drop new photos.','err'); return; }
+  const rc = ratingChanged(i), sc = seenChanged(i);
+  if(!keys.length && !fresh.length && !rc && !sc){ say('Nothing new to add. Change the rating or seen IRL, fill an empty field, or drop new photos.','err'); return; }
   const c=document.createElement('canvas'); let failed=0;
   for(let idx=0; idx<photos.length; idx++){
     const p=photos[idx];
-    if (p.existing && !keys.length && !rc) continue;
+    if (p.existing && !keys.length && !rc && !sc) continue;
     try{
       p.status = p.existing ? 'Overlaying…' : 'Stamping…'; p.cls=''; render();
       const blob = p.existing ? await encode(await renderPhoto(p,i,c),0.95) : await stampedJpeg(p,i,c);
@@ -630,6 +659,7 @@ async function applyEdit(){
   }
   const merged={...edit.existing}; fields.forEach(f=>{ if(!merged[f] && i[f]) merged[f]=i[f]; });
   merged.rating = String(ratingOf(i.rating));
+  merged.seen = i.seen;
   await writeFile(edit.dir,edit.metaName,infoText(merged));
   mergeRecords([merged]);
   if(!failed){ const b=edit.base; exitEdit(); say(`Updated ${b}.`,'ok'); }
@@ -659,11 +689,12 @@ async function loadEdit(dir, base){
     if(name===`${base}.txt` || (name==='info.txt' && !metaName)){ meta=parseInfo(await (await h.getFile()).text()); metaName=name; }
     else { const mm=name.match(re); if(mm) files.push({name, num:+mm[1], file:await h.getFile()}); }
   }
-  if(!meta || meta.layout!==LAYOUT){ say("This piece was saved before the fixed layout, so its empty slots are unknown. Only pieces saved from now on can be edited.",'err'); return; }
+  if(!meta || !EDITABLE.includes(meta.layout)){ say("This piece was saved before the fixed layout, so its empty slots are unknown. Only pieces saved from now on can be edited.",'err'); return; }
   clearPhotos();
   files.sort((a,b)=>a.num-b.num);
   edit={dir, base, existing:meta, metaName, maxNum:Math.max(0,...files.map(f=>f.num))};
   fields.forEach(f=>{ const v=meta[f]||''; $(f).value=v; $(f).readOnly = f!=='rating' && !!v; });
+  $('seen').checked = seenOf(meta.seen);
   showRating();
   photos=files.map(f=>({id:crypto.randomUUID(), file:f.file, url:URL.createObjectURL(f.file), name:f.name, existing:true, status:'', cls:''}));
   selected=0;
@@ -673,6 +704,7 @@ async function loadEdit(dir, base){
 function exitEdit(){
   edit=null;
   fields.forEach(f=>{ $(f).readOnly=false; $(f).value=''; });
+  $('seen').checked = false;
   showRating();
   clearPhotos();
 }
@@ -785,7 +817,7 @@ async function scanPieces(){
       const meta = parseInfo(await (await th.getFile()).text()) || {};
       jpgs.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
       out.push({dir, base, meta, files:jpgs.map(j=>({name:j.name, h:j.h, url:null})), count:jpgs.length,
-        price:parsePrice(meta.price), rating:ratingOf(meta.rating), date:meta.date||'', editable:meta.layout===LAYOUT});
+        price:parsePrice(meta.price), rating:ratingOf(meta.rating), date:meta.date||'', editable:EDITABLE.includes(meta.layout)});
     }
   }
   await walk(dirHandle, 0);
@@ -815,7 +847,7 @@ async function loadGallery(){
 function renderGallery(){
   const q=$('gSearch').value.trim().toLowerCase(), cat=$('gCat').value, st=$('gStore').value;
   const min=$('gMin').value===''?null:+$('gMin').value, max=$('gMax').value===''?null:+$('gMax').value;
-  const rf=$('gRating').value, sort=$('gSort').value;
+  const rf=$('gRating').value, sf=$('gSeen').value, sort=$('gSort').value;
   let list = pieces.filter(p=>{
     const m=p.meta;
     if (cat && m.category!==cat) return false;
@@ -825,6 +857,7 @@ function renderGallery(){
     if (max!==null && p.price>max) return false;
     if (rf==='0' && p.rating!==0) return false;
     if (rf && rf!=='0' && p.rating < +rf) return false;
+    if (sf && seenOf(m.seen) !== (sf==='yes')) return false;
     if (q && !`${m.item||''} ${m.notes||''}`.toLowerCase().includes(q)) return false;
     return true;
   });
@@ -857,7 +890,7 @@ function renderGallery(){
       <div class="body">
         <div class="t">${escapeHtml(m.item || m.category || p.base)}</div>
         <div class="m">${sub}${m.price?`${sub?' | ':''}<span class="price">${escapeHtml(m.price)}</span>`:''}${m.dims?` | ${escapeHtml(m.dims)}`:''}</div>
-        <div class="r" aria-label="${p.rating} of 5 stars">${stars}</div>
+        <div class="r"><span aria-label="${p.rating} of 5 stars">${stars}</span>${seenOf(m.seen)?'<span class="seen">✓ Seen IRL</span>':''}</div>
       </div>
       <div class="foot">
         <span>Photo ${k+1} of ${p.count}${m.date?` | ${escapeHtml(m.date)}`:''}${p.editable?'':' | older layout'}</span>
@@ -910,8 +943,8 @@ $('tabStamp').onclick=()=>showView('stamp');
 $('tabGallery').onclick=()=>showView('gallery');
 $('gRefresh').onclick=loadGallery;
 ['gSearch','gMin','gMax'].forEach(id=>$(id).addEventListener('input',renderGallery));
-['gCat','gStore','gRating','gSort'].forEach(id=>$(id).addEventListener('change',renderGallery));
-$('gReset').onclick=()=>{ ['gSearch','gMin','gMax','gCat','gStore','gRating'].forEach(id=>$(id).value=''); $('gSort').value='new'; renderGallery(); };
+['gCat','gStore','gRating','gSeen','gSort'].forEach(id=>$(id).addEventListener('change',renderGallery));
+$('gReset').onclick=()=>{ ['gSearch','gMin','gMax','gCat','gStore','gRating','gSeen'].forEach(id=>$(id).value=''); $('gSort').value='new'; renderGallery(); };
 if(!('showDirectoryPicker' in window)) $('tabGallery').hidden=true;
 
 /* ---------- rating control ---------- */
@@ -930,6 +963,7 @@ $('stars').addEventListener('click', e=>{
 
 /* ---------- bindings ---------- */
 fields.forEach(f=>$(f).addEventListener('input',()=>{ render(); schedulePreview(); }));
+$('seen').addEventListener('change',()=>{ render(); schedulePreview(); });
 $('item').addEventListener('change', autofillFromItem);
 ['category','item','store','dims'].forEach(id=>{
   const el=$(id);
