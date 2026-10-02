@@ -636,7 +636,7 @@ async function saveNew(){
   await writeFile(sub,`${base}.txt`,infoText({...i, date:today()}));
   mergeRecords([{...i, date:today()}]);
   const where=`${dirHandle.name}/${sub.name}`;
-  if(saved===n){ clearPhotos(); say(`Saved ${n} photo${n>1?'s':''} to ${where}.`,'ok'); }
+  if(saved===n){ resetForm(); clearPhotos(); say(`Saved ${n} photo${n>1?'s':''} to ${where}.`,'ok'); }
   else say(`Saved ${saved} of ${n}. Check the photos marked in red.`,'err');
 }
 
@@ -701,11 +701,14 @@ async function loadEdit(dir, base){
   say(`Loaded ${files.length} photo${files.length>1?'s':''}.`);
   render(); schedulePreview();
 }
-function exitEdit(){
-  edit=null;
+function resetForm(){
   fields.forEach(f=>{ $(f).readOnly=false; $(f).value=''; });
   $('seen').checked = false;
   showRating();
+}
+function exitEdit(){
+  edit=null;
+  resetForm();
   clearPhotos();
 }
 

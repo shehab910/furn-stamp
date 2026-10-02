@@ -25,7 +25,7 @@
 
 - Files are `category_YYYY-MM-DD_xxxx_NN.jpg`, where xxxx is a random 4-char batch ID, plus a sidecar `category_YYYY-MM-DD_xxxx.txt` with labeled lines (Layout, Category, Item, Store, Price, Size, Rating, Date, Description).
 - New photos keep full resolution at JPEG 0.95, capped at 10 MB: quality steps down first, then resolution (6000, 4096, 3200).
-- The batch clears after a fully successful save or download; the form stays filled.
+- A fully successful save to the folder clears the batch and resets the form. A download clears the batch but keeps the form filled.
 - Older pieces in `Category/piece/info.txt` subfolders are still read and can still be edited.
 
 **Edit mode:** "Edit a saved piece" opens a file picker. The tool finds the sibling photos by prefix and loads the .txt.
