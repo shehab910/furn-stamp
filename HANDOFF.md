@@ -15,6 +15,8 @@
 - `store.js`: the piece store. It holds the naming pattern, the `.txt` sidecar format, `listPieces`/`loadPiece`, and two folder adapters (`LocalFolder`, `DriveFolder`) with one small interface: `list`, `sub`, `write`, `allowed`.
 - `app.js`: the UI. Its "edit rules" section holds what's locked, what gets overlaid and the merged sidecar.
 
+**Tests:** `npm test` runs Playwright (`tests/app.spec.js`) against the real app, in full Chromium. Desktop mode uses the browser's private folder (OPFS) as the save folder; phone mode uses an in-memory fake of the Drive API. The saved JPEGs are checked two ways: pixel probes against `layout()` (text in each slot, gold star count, badge colour, and no pixel changes outside the edited areas) and golden snapshots in `tests/app.spec.js-snapshots/`. After an intended visual change, run `npx playwright test --update-snapshots`.
+
 **Stack:** vanilla JS/HTML/CSS. Canvas does the image work, the File System Access API reads and writes folders, and IndexedDB stores the folder handles. localStorage holds categories and autofill history. The font is Bricolage Grotesque from Google Fonts. Light and dark themes come from CSS tokens.
 
 **Form fields:** Category (the only required field; free text with suggestions Dining, Bedroom, Living, Tables, editable via an "Edit list" dialog), Item, Store, Price, Size, Rating (0–5 stars), Seen IRL (checkbox, stored as `Seen: yes|no`) and Description.
