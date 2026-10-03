@@ -1,6 +1,19 @@
 **Handoff: Furniture stamp tool**
 
-**What it is:** a single self-contained HTML file (`furniture-stamp.html`), run locally in desktop Chrome/Edge. It stamps furniture shopping info onto photos and saves them into a local folder that Google Drive for desktop backs up to Google Photos. There is no backend and no Google API; the folder sync was chosen on purpose instead of the Photos API.
+**What it is:** a static web app (currently `index.html`), run in desktop Chrome/Edge or on a phone. It stamps furniture shopping info onto photos and saves them into a local folder that the Google Drive for desktop app keeps in two-way sync with Google Drive: files added locally appear in Drive, and files deleted locally are deleted from Drive. The app itself never syncs anything; Drive for desktop does all of it, which is why the app stays simple. There is no backend.
+
+**Two modes, picked automatically:**
+
+- **Desktop Chrome/Edge (local mode):** uses the File System Access API on the local synced folder, as before. No Google sign-in.
+- **Phones and any browser without `showDirectoryPicker` (Drive mode):** reaches the same folder in Google Drive through the Drive REST API, signing in with Google Identity Services (scope `drive`, token kept in localStorage for its 1-hour lifetime). `DriveFolder` and `LocalFolder` share one small interface, so the save, edit and gallery code is shared. Uploads are resumable; edits replace a file's content in place, keeping the file ID. Gallery tiles use Drive thumbnails instead of downloading full photos. The folder is chosen by searching its name or pasting its link. The phone layout puts the photo panel above the form. Edit mode starts from the gallery's pencil icon, and there's no Recent strip.
+- Drive mode needs `GOOGLE_CLIENT_ID` filled in and the page served over HTTPS from an origin listed on that OAuth client.
+
+**Files (plain scripts, no build step, so `index.html` still opens straight from disk):**
+
+- `index.html`: markup and CSS.
+- `stamp.js`: the watermark renderer. It's pure: `paint(bitmap, plan)`, where a plan says full stamp or overlay, which slots, rating and seen IRL.
+- `store.js`: the piece store. It holds the naming pattern, the `.txt` sidecar format, `listPieces`/`loadPiece`, and two folder adapters (`LocalFolder`, `DriveFolder`) with one small interface: `list`, `sub`, `write`, `allowed`.
+- `app.js`: the UI. Its "edit rules" section holds what's locked, what gets overlaid and the merged sidecar.
 
 **Stack:** vanilla JS/HTML/CSS. Canvas does the image work, the File System Access API reads and writes folders, and IndexedDB stores the folder handles. localStorage holds categories and autofill history. The font is Bricolage Grotesque from Google Fonts. Light and dark themes come from CSS tokens.
 
@@ -45,8 +58,8 @@
 
 **Layout of the UI:** a sticky sidebar holds the form, a file name preview and the actions (Save to folder or Apply to piece, Download stamped, Clear photos, Edit a saved piece or Cancel edit). The main area holds the Recent strip, drop zone, preview canvas, thumbnails, and "Choose folder" at the bottom.
 
-**Decisions made (don't revisit):** no originals are kept; edits are overlay-only. No videos. No FB/IG link fetching. Category is required and everything else is optional. Drive for desktop deletions sync to Photos, which the user is fine with.
+**Decisions made (don't revisit):** no originals are kept; edits are overlay-only. No videos. No FB/IG link fetching. Category is required and everything else is optional. Drive for desktop deletions sync to Drive, which the user is fine with.
 
-**Known limits:** desktop Chrome/Edge only for the folder features (Download works anywhere). Typos in already-filled fields can't be fixed without re-saving. The rendering hasn't been visually tested here; only syntax was checked.
+**Known limits:** Drive mode needs a Google sign-in popup about once an hour of use (the OAuth app is in Testing mode, with no refresh tokens). Folders the phone creates through the API and folders created locally but not yet synced could end up as two folders with the same name. Typos in already-filled fields can't be fixed without re-saving. The rendering hasn't been visually tested here; only syntax was checked.
 
 **User preferences:** direct, concise answers, no padding.
