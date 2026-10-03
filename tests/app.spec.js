@@ -9,7 +9,7 @@ test.describe('desktop (local folder)', () => {
 
   test('stamps a photo and saves it with its sidecar', async ({ page }) => {
     await addPhoto(page);
-    await fillForm(page, { category: 'Living', item: 'Kivik sofa', store: 'IKEA', price: '24,500 EGP', dims: '228×95×83 cm', notes: 'Grey fabric, washable cover', rating: 3, seen: true });
+    await fillForm(page, { category: 'Living', item: 'Kivik sofa', store: 'IKEA', price: '24,500 EGP', size: '228×95×83 cm', description: 'Grey fabric, washable cover', rating: 3, seen: true });
     expect(await clickSave(page)).toMatch(/Saved 1 photo to .*Living\./);
 
     const files = await localFiles(page);
@@ -23,7 +23,7 @@ test.describe('desktop (local folder)', () => {
     const jpg = pick(files, /\.jpg$/)[0];
     expect(await probe(page, jpg)).toEqual({
       width: W, height: H,
-      text: { notes: true, item: true, category: true, store: true, price: true, dims: true },
+      text: { description: true, item: true, category: true, store: true, price: true, size: true },
       stars: 3, seen: true, topBandDark: true, bottomBandDark: true,
     });
     expect(await toPng(page, jpg)).toMatchSnapshot('full-stamp.png', { maxDiffPixelRatio: 0.01 });
@@ -42,7 +42,7 @@ test.describe('desktop (local folder)', () => {
     const jpg = require('fs').readFileSync(await download.path());
     expect(await probe(page, jpg)).toEqual({
       width: W, height: H,
-      text: { notes: false, item: true, category: true, store: false, price: false, dims: false },
+      text: { description: false, item: true, category: true, store: false, price: false, size: false },
       stars: 0, seen: false, topBandDark: true, bottomBandDark: true,
     });
     expect(await toPng(page, jpg)).toMatchSnapshot('minimal-stamp.png', { maxDiffPixelRatio: 0.01 });
@@ -51,13 +51,13 @@ test.describe('desktop (local folder)', () => {
 
   test('autofills a known item from history', async ({ page }) => {
     await addPhoto(page);
-    await fillForm(page, { category: 'Living', item: 'Kivik sofa', store: 'IKEA', dims: '228×95×83 cm' });
+    await fillForm(page, { category: 'Living', item: 'Kivik sofa', store: 'IKEA', size: '228×95×83 cm' });
     await clickSave(page);
 
     await page.fill('#item', 'Kivik sofa');
     await page.locator('#item').dispatchEvent('change');
     await expect(page.locator('#store')).toHaveValue('IKEA');
-    await expect(page.locator('#dims')).toHaveValue('228×95×83 cm');
+    await expect(page.locator('#size')).toHaveValue('228×95×83 cm');
     await expect(page.locator('#category')).toHaveValue('Living');
   });
 
@@ -66,7 +66,7 @@ test.describe('desktop (local folder)', () => {
     await fillForm(page, { category: 'Living', item: 'Sofa', store: 'IKEA', price: '24,500 EGP', rating: 4 });
     await clickSave(page);
     await addPhoto(page); await addPhoto(page, '#6a8');
-    await fillForm(page, { category: 'Dining', item: 'Table', store: 'Hub', price: '8k', notes: 'Walnut top', rating: 2, seen: true });
+    await fillForm(page, { category: 'Dining', item: 'Table', store: 'Hub', price: '8k', description: 'Walnut top', rating: 2, seen: true });
     await clickSave(page);
 
     await page.click('#tabGallery');
@@ -169,7 +169,7 @@ test.describe('phone (Google Drive)', () => {
     const [oldJpg] = pick(saved, /\.jpg$/);
     const p = await probe(page, oldJpg);
     expect(p).toMatchObject({ width: W, height: H, stars: 3, seen: false });
-    expect(p.text).toMatchObject({ item: true, store: true, price: true, notes: false });
+    expect(p.text).toMatchObject({ item: true, store: true, price: true, description: false });
     const ids = drive.ids();
 
     await expect(page.locator('#editBtn')).toHaveText('Edit from gallery');

@@ -19,7 +19,7 @@ async function addPhoto(page, color) {
 }
 
 async function fillForm(page, f) {
-  for (const k of ['category', 'item', 'store', 'price', 'dims', 'notes']) if (f[k] !== undefined) await page.fill(`#${k}`, f[k]);
+  for (const k of ['category', 'item', 'store', 'price', 'size', 'description']) if (f[k] !== undefined) await page.fill(`#${k}`, f[k]);
   if (f.rating) await page.click(`#stars button[data-v="${f.rating}"]`);
   if (f.seen) await page.check('#seen');
 }
