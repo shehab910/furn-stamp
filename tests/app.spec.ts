@@ -1,8 +1,9 @@
-const { test, expect } = require('@playwright/test');
-const { W, H, addPhoto, fillForm, clickSave, openWithLocalFolder, localFiles, openAsPhone, probe, changedOutside, toPng } = require('./helpers');
+import { readFileSync } from 'node:fs';
+import { expect, test } from '@playwright/test';
+import { addPhoto, changedOutside, clickSave, fillForm, H, localFiles, openAsPhone, openWithLocalFolder, probe, toPng, W, type Files } from './helpers';
 
 const DATE = /\d{4}-\d{2}-\d{2}/.source;
-const pick = (files, re) => Object.entries(files).filter(([k]) => re.test(k)).map(([, v]) => v);
+const pick = (files: Files, re: RegExp): Buffer[] => Object.entries(files).filter(([k]) => re.test(k)).map(([, v]) => v);
 
 test.describe('desktop (local folder)', () => {
   test.beforeEach(async ({ page }) => { await openWithLocalFolder(page); });
@@ -33,13 +34,24 @@ test.describe('desktop (local folder)', () => {
     await expect(page.locator('#thumbs li')).toHaveCount(0);
   });
 
+  test('an unrated piece always gets a Rating line, also after the form resets', async ({ page }) => {
+    for (const item of ['Stool', 'Bench']) {
+      await addPhoto(page);
+      await fillForm(page, { category: 'Living', item });
+      await clickSave(page);
+    }
+    const txts = pick(await localFiles(page), /\.txt$/).map(b => b.toString());
+    expect(txts).toHaveLength(2);
+    for (const txt of txts) expect(txt).toContain('Rating: 0\nSeen: no\n');
+  });
+
   test('downloads a stamped photo with empty slots left blank', async ({ page }) => {
     await addPhoto(page);
     await fillForm(page, { category: 'Tables', item: 'Oak desk' });
     const [download] = await Promise.all([page.waitForEvent('download'), page.click('#download')]);
     expect(download.suggestedFilename()).toMatch(new RegExp(`^tables_${DATE}_\\w{4}_01\\.jpg$`));
 
-    const jpg = require('fs').readFileSync(await download.path());
+    const jpg = readFileSync(await download.path());
     expect(await probe(page, jpg)).toEqual({
       width: W, height: H,
       text: { description: false, item: true, category: true, store: false, price: false, size: false },
@@ -117,7 +129,7 @@ test.describe('desktop (local folder)', () => {
     expect(await clickSave(page)).toMatch(/^Updated bedroom_/);
 
     const after = await localFiles(page);
-    const base = Object.keys(before).find(n => n.endsWith('.txt')).slice(0, -4);
+    const base = Object.keys(before).find(n => n.endsWith('.txt'))!.slice(0, -4);
     expect(Object.keys(after).sort()).toEqual([`${base}.txt`, `${base}_01.jpg`, `${base}_02.jpg`]);
     const txt = pick(after, /\.txt$/)[0].toString();
     expect(txt).toMatch(/Item: Malm bed\nStore: IKEA\nRating: 5\nSeen: yes\n/);

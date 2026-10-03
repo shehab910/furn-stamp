@@ -25,11 +25,11 @@
 - `src/main.ts`: the UI, still one file. Its "edit rules" section holds what's locked, what gets overlaid and the merged sidecar.
 - Field names: the form, the code and the slot keys use `size` and `description`, which used to be `dims` and `notes`. The `.txt` labels are unchanged (`Size:`, `Description:`), old `Notes:` lines are still read, and autofill history saved under the old keys is migrated on load.
 
-**Tests:** `npm test` runs Playwright (`tests/app.spec.js`) against the production build (`vite build` then `vite preview` on port 8765), in full Chromium (the headless shell crashes the page). Converting the tests to TypeScript is the next step.
+**Tests:** `npm test` runs Playwright (`tests/app.spec.ts`, TypeScript, type-checked by `npm run typecheck` through `tests/tsconfig.json`) against the production build (`vite build` then `vite preview` on port 8765), in full Chromium (the headless shell crashes the page).
 
 - Desktop mode uses the browser's private folder (OPFS) as the save folder, picked through a stubbed folder picker.
-- Phone mode uses an in-memory fake of the Drive API (`tests/helpers.js`).
-- Saved JPEGs are checked with pixel probes against `layout()` (text in each slot, gold star count, badge colour, no pixel changes outside edited areas) and with golden snapshots in `tests/app.spec.js-snapshots/` (Linux). After an intended visual change, run `npx playwright test --update-snapshots`.
+- Phone mode uses an in-memory fake of the Drive API (`tests/helpers.ts`).
+- Saved JPEGs are checked with pixel probes against `layout()` (text in each slot, gold star count, badge colour, no pixel changes outside edited areas) and with golden snapshots in `tests/app.spec.ts-snapshots/` (Linux). After an intended visual change, run `npx playwright test --update-snapshots`.
 - Quirk: in Chromium 1243, reading an OPFS handle back from IndexedDB crashes the page, so no test reloads with a folder set.
 
 **Form fields:** Category (the only required field; free text with suggestions Dining, Bedroom, Living, Tables, editable via an "Edit list" dialog), Item, Store, Price, Size, Rating (0–5 stars), Seen IRL (checkbox, stored as `Seen: yes|no`) and Description.
@@ -74,15 +74,14 @@
 
 **Next steps:**
 
-1. **Tests to TypeScript:** convert `tests/*.js` and switch `package.json` to `"type": "module"`. Then add a test for the always-written `Rating: 0`.
-2. **Google sign-in setup (user does this):** in Google Cloud Console, create a project, enable the Drive API, set the OAuth consent screen to External in Testing with the user as a test user, and create a Web application client ID. Then paste it into `GOOGLE_CLIENT_ID` in `src/store/drive-folder.ts`.
-3. **Hosting:** create the GitHub repo (it must be public for Pages on a free plan), push, and set Settings → Pages → Source to "GitHub Actions". Add the Pages address as an authorized JavaScript origin on the OAuth client.
-4. **Real-device check of Drive mode,** which so far has only run against the fake Drive:
+1. **Google sign-in setup (user does this):** in Google Cloud Console, create a project, enable the Drive API, set the OAuth consent screen to External in Testing with the user as a test user, and create a Web application client ID. Then paste it into `GOOGLE_CLIENT_ID` in `src/store/drive-folder.ts`.
+2. **Hosting:** create the GitHub repo (it must be public for Pages on a free plan), push, and set Settings → Pages → Source to "GitHub Actions". Add the Pages address as an authorized JavaScript origin on the OAuth client.
+3. **Real-device check of Drive mode,** which so far has only run against the fake Drive:
    - sign-in popup on iOS Safari and Android Chrome
    - the resumable upload's `Location` header being readable from the browser
    - `thumbnailLink` fetched with the auth header (it falls back to the full download if that fails)
    - finding the folder by search when it lives under "Computers" rather than My Drive
-5. Fix anything the real-device run turns up, and extend the fake in `tests/helpers.js` to cover it.
-6. **Later architecture work** (from the architecture review): a Batch module that pulls the photo list, edit mode, naming and the save loop out of `main.ts`; a pure gallery query (filters and sort) split from rendering; then one file per view.
+4. Fix anything the real-device run turns up, and extend the fake in `tests/helpers.ts` to cover it.
+5. **Later architecture work** (from the architecture review): a Batch module that pulls the photo list, edit mode, naming and the save loop out of `main.ts`; a pure gallery query (filters and sort) split from rendering; then one file per view.
 
 **User preferences:** direct, concise answers, no padding. Keep designs simple; don't over-engineer.
